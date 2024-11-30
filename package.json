@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npm run train; rm ./script/bundle.js; budo ./script/nlp.js:script/bundle.js --wg **/*.{html,css,js} --live",
+    "dev": "budo ./script/nlp.js:script/bundle.js --wg **/*.{html,css,js} --live",
     "build": "npm run train; browserify ./script/index.js | terser --compress --mangle > ./script/bundle.js",
     "train": "node ./script/nlp/train.js"
   },
