@@ -3,8 +3,6 @@ const input = document.getElementById('message');
 const messages = document.getElementById('messages');
 const loader = document.getElementById('loader');
 
-/* Handle async loader things */
-const modules = [];
 var foundVoice = null;
 const femaleVoices = [
   'Female',
@@ -17,16 +15,20 @@ const femaleVoices = [
   'Kyoko',
   'Zira'
 ];
-window.LOADED = (thing) => {
-  modules.push(thing);
-  if (modules.length === 2) loader.style.display = 'none';
-}
 window.speechSynthesis.onvoiceschanged = () => { 
   console.warn('voices are ready', window.speechSynthesis.getVoices()); 
   foundVoice = speechSynthesis.getVoices()
     .find(({ name }) => includesAnySubstring(name, femaleVoices));
   console.log("foundVoice,", foundVoice);
 };
+
+/* Handle async loader things */
+const modules = [];
+
+window.LOADED = (thing) => {
+  modules.push(thing);
+  if (modules.length === 2) loader.style.display = 'none';
+}
 
 /* begin */
 const createMessage = (sender, message) => {
@@ -38,11 +40,11 @@ const createMessage = (sender, message) => {
   messages.append(div);
   div.scrollIntoView();
 }
+
 const includesAnySubstring = (string, array) => {
-  console.log("name", string)
-  console.log("array", array)
   return array.some(substring => string.includes(substring));
 }
+
 const processMessage = (message) => {
   // random delay for "authenticity"
   const delay = Math.random() * 2000 + 300;
@@ -54,16 +56,33 @@ const processMessage = (message) => {
 
       var T2S; 
       if("speechSynthesis" in window || speechSynthesis){ // Checking If speechSynthesis Is Supported.
-
-          // var text = prompt("What Text To Say?") || `Text To Speech is Over Powered`; // Ask What To Say or use Default
-          
           T2S = window.speechSynthesis || speechSynthesis; // Storing speechSynthesis API as variable - T2S
-          // var voiceOptioins = T2S.getVoices();
-          // var voiceChoice = voiceOptioins[1];
           var utter = new SpeechSynthesisUtterance(answer); // To Make The Utterance
           if (foundVoice) utter.voice = foundVoice;
-          T2S.speak(utter); // To Speak The Utterance
 
+          var mouthValue = 0;
+          window.APP.ticker.add(() => {
+            // mimic the interpolation value, 0-1
+            mouthValue = Math.sin(performance.now() / 200) / 2 + 0.5;
+          });
+          const updateFn = window.MODEL.internalModel.motionManager.update;
+
+          window.MODEL.internalModel.motionManager.update = () => {
+            updateFn.call(window.MODEL.internalModel.motionManager);
+
+            // overwrite the parameter after calling original update function
+            window.MODEL.internalModel.coreModel.setParamFloat('PARAM_MOUTH_OPEN_Y', mouthValue);
+          };
+          // start mouth movement when speaking starts
+          utter.onstart = () => { window.APP.ticker.start() }
+          
+          // stop mouth movement after speaking
+          const clear = () => { window.APP.ticker.stop() }
+          utter.onerror = clear;
+          utter.onend = clear;
+
+          T2S.speak(utter); // To Speak The Utterance
+          
           window.onbeforeunload = function(){
               T2S.cancel(); // To Stop Speaking If the Page Is Closed.
           }
